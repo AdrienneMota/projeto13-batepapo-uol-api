@@ -1,0 +1,30 @@
+{
+  "name": "projeto13-batepapo-uol-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AdrienneMota/projeto13-batepapo-uol-api.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AdrienneMota/projeto13-batepapo-uol-api/issues"
+  },
+  "homepage": "https://github.com/AdrienneMota/projeto13-batepapo-uol-api#readme",
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "mongodb": "^4.11.0"
+  }
+}

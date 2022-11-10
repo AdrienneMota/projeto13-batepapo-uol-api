@@ -44,6 +44,19 @@ app.post("/participants", async (req, res) => {
     }
 })
 
+/////listagem de participantes
+app.get("/participants", async (req, res) => {
+    let participantsNow = []
+
+    try {
+        participantsNow = await participants.find().toArray()
+        res.send(participantsNow)
+    } catch (error) {
+        console.log(error)
+        res.sendStatus(500)
+    }
+})
+
 app.listen(5000, () => console.log(`Server is running in port: ${5000}`))
 
 

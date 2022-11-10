@@ -28,6 +28,19 @@ try {
 /////cadastro de participante
 app.post("/participants", async (req, res) => {
     const { name } = req.body
+    let listParticipants
+    
+    try {
+        listParticipants = await participants.find().toArray()
+    } catch (error) {
+        console.log(error)
+    }
+
+    const participantExist = listParticipants.find((p) => p.name === name)
+    if(participantExist){
+        res.status(409).send({ message: "participante já existe, escolha outro nome"})
+        return
+    }
 
     if(!name){
         res.status(422).send({message: "O nome do parcipante deve ser strings não vazio"})
@@ -37,7 +50,7 @@ app.post("/participants", async (req, res) => {
     const participant = {name, lastStatus: Date.now()}   
 
     try {
-        await participants.insert(participant)
+        await participants.insertOne(participant)
         res.status(201).send({message: "Participante criado com sucesso."})
     } catch (error) {
         res.status(500).send(error)

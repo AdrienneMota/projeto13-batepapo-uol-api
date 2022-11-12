@@ -13,11 +13,16 @@ const participantSchema = joi.object({
     name: joi.string().required().min(1)
 }) 
 
+const messageSchema = joi.object({
+    to: joi.string().min(1).required(),
+    text: joi.string().min(1).required(),
+    type: joi.string().valid("message", "private_message")
+})
+
 /////configurações da api
 app.use(cors()) //usar a biblioteca cors que evita erro de segurança
 app.use(express.json())//permite que a app entendo objetos json
 dotenv.config()//permite usar o documento .env
-//const dayjs = require('dayjs')
 
 /////o mongo db recebe o caminho para achar o banco 
 const mongodb = new MongoClient(process.env.MONGO_URI)
@@ -34,6 +39,8 @@ try {
 } catch (error) {
     console.log(error)
 }
+
+////ROTA DE PARTICIPANTES
 
 /////cadastro de participante
 app.post("/participants", async (req, res) => {
@@ -55,10 +62,11 @@ app.post("/participants", async (req, res) => {
     }
     
     //inserir participante   
+    //enviar mensagem de entrada
 
     try {
         await participants.insertOne({name: candidateParticipant.name, lastStatus: Date.now()})
-        await messages.insertOne({from: candidateParticipant.name, to: 'Todos', text: 'entra na sala...', type: 'status', time: "now"})
+        await messages.insertOne({from: candidateParticipant.name, to: 'Todos', text: 'entra na sala...', type: 'status', time: dayjs().format('HH:mm:ss')})
         res.status(201).send({message: "Participante cadastrado com sucesso."})
     } catch (error) {
         res.status(500).send(error)
@@ -75,6 +83,38 @@ app.get("/participants", async (req, res) => {
         console.log(error)
         res.sendStatus(500)
     }
+})
+
+/////ROTAS DE MENSAGENS
+
+/////cadastro de menssagens
+app.post("/messages", async (req, res) => {
+    const message = req.body
+    const participant = req.headers.user
+    const participantExist = await participants.findOne({name: participant})
+
+    if(!participantExist){
+        res.status(422).send({message: "este participante não existe na sala"})
+        return
+    }
+
+    const validation = messageSchema.validate(message, {abortEarly: false})
+    if(validation.error){
+        const erros = validation.error.details.map( d => d.message)
+        res.status(422).send(erros)
+        return
+    }
+
+    const {to, text, type} = message
+
+    try {
+        await messages.insertOne({to, text, type, from: participant, time: dayjs().format('HH:mm:ss')})
+        res.sendStatus(201)
+    } catch (error) {
+        res.status(500).send(error)
+    }
+
+    
 })
 
 /////listagem de menssagens

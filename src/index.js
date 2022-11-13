@@ -40,7 +40,7 @@ try {
     console.log(error)
 }
 
-////ROTA DE PARTICIPANTES
+////ROTA DE PARTICIPANTES//////////////////////////////////////////////////////////////////
 
 /////cadastro de participante
 app.post("/participants", async (req, res) => {
@@ -85,7 +85,10 @@ app.get("/participants", async (req, res) => {
     }
 })
 
-/////ROTAS DE MENSAGENS
+/////deleção de participante
+
+
+/////ROTAS DE MENSAGENS///////////////////////////////////////////////////////////////////
 
 /////cadastro de menssagens
 app.post("/messages", async (req, res) => {
@@ -138,7 +141,28 @@ app.get("/messages", async (req, res) => {
 
 })
 
+/////ROTAS STATUS////////////////////////////////////////////////////////////////////////
+
+app.post("/status", async (req, res) => {
+    const participant = req.headers.user
+
+    try {
+        const participantExist = await participants.findOne({name: participant})
+
+        if(!participantExist){
+            res.sendStatus(404)
+            return
+        }
+        await participants.updateOne({name: participant}, {$set: {lastStatus: Date.now()}})
+        res.sendStatus(200)
+    } catch (error) {
+        res.sendStatus(500)
+    }
+})
+
 app.listen(5000, () => console.log(`Server is running in port: ${5000}`))
+
+
 
 
 

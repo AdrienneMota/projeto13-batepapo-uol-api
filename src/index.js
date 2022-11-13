@@ -8,10 +8,10 @@ import dayjs from "dayjs"
 /////criacao da api
 const app = express() //criacao da api
 
-//////confis dos objetos
+//////configs dos objetos
 const participantSchema = joi.object({
     name: joi.string().required().min(1)
-}) 
+})
 
 const messageSchema = joi.object({
     to: joi.string().min(1).required(),
@@ -26,8 +26,8 @@ dotenv.config()//permite usar o documento .env
 
 /////o mongo db recebe o caminho para achar o banco 
 const mongodb = new MongoClient(process.env.MONGO_URI)
-let db 
-let participants 
+let db
+let participants
 let messages
 
 /////ligação com o banco
@@ -47,27 +47,27 @@ app.post("/participants", async (req, res) => {
     const candidateParticipant = req.body
 
     //verificações
-    
-    const validation = participantSchema.validate(candidateParticipant, {abortEarly: false})
-    if(validation.error){
-        const erros = validation.error.details.map( d => d.message)
+
+    const validation = participantSchema.validate(candidateParticipant, { abortEarly: false })
+    if (validation.error) {
+        const erros = validation.error.details.map(d => d.message)
         res.status(422).send(erros)
         return
     }
-    
-    const participantExist = await participants.findOne({name: candidateParticipant.name})
-    if(participantExist){
-        res.status(409).send({message: "participante já existe"})
+
+    const participantExist = await participants.findOne({ name: candidateParticipant.name })
+    if (participantExist) {
+        res.status(409).send({ message: "participante já existe" })
         return
     }
-    
+
     //inserir participante   
     //enviar mensagem de entrada
 
     try {
-        await participants.insertOne({name: candidateParticipant.name, lastStatus: Date.now()})
-        await messages.insertOne({from: candidateParticipant.name, to: 'Todos', text: 'entra na sala...', type: 'status', time: dayjs().format('HH:mm:ss')})
-        res.status(201).send({message: "Participante cadastrado com sucesso."})
+        await participants.insertOne({ name: candidateParticipant.name, lastStatus: Date.now() })
+        await messages.insertOne({ from: candidateParticipant.name, to: 'Todos', text: 'entra na sala...', type: 'status', time: dayjs().format('HH:mm:ss') })
+        res.status(201).send({ message: "Participante cadastrado com sucesso." })
     } catch (error) {
         res.status(500).send(error)
     }
@@ -91,42 +91,51 @@ app.get("/participants", async (req, res) => {
 app.post("/messages", async (req, res) => {
     const message = req.body
     const participant = req.headers.user
-    const participantExist = await participants.findOne({name: participant})
+    const participantExist = await participants.findOne({ name: participant })
 
-    if(!participantExist){
-        res.status(422).send({message: "este participante não existe na sala"})
+    if (!participantExist) {
+        res.status(422).send({ message: "Este participante não existe na sala" })
         return
     }
 
-    const validation = messageSchema.validate(message, {abortEarly: false})
-    if(validation.error){
-        const erros = validation.error.details.map( d => d.message)
+    const validation = messageSchema.validate(message, { abortEarly: false })
+    if (validation.error) {
+        const erros = validation.error.details.map(d => d.message)
         res.status(422).send(erros)
         return
     }
 
-    const {to, text, type} = message
+    const { to, text, type } = message
 
     try {
-        await messages.insertOne({to, text, type, from: participant, time: dayjs().format('HH:mm:ss')})
+        await messages.insertOne({ to, text, type, from: participant, time: dayjs().format('HH:mm:ss') })
         res.sendStatus(201)
     } catch (error) {
         res.status(500).send(error)
     }
 
-    
+
 })
 
 /////listagem de menssagens
 app.get("/messages", async (req, res) => {
+    const limit = parseInt(req.query.limit)
+    const participant = req.headers.user
 
     try {
-        const messagesNow = await messages.find().toArray()
-        res.send(messagesNow)
+        const allMessages = await messages.find().toArray()
+        const messagesFiltered = allMessages.filter(m => ((m.from === participant) || (m.to === participant) || (m.to === "Todos")))
+
+        if (limit) {
+            res.send(messagesFiltered.reverse().slice(0, limit))
+        } else {
+            res.send(messagesFiltered.reverse())
+        }
     } catch (error) {
         console.log(error)
         res.sendStatus(500)
     }
+
 })
 
 app.listen(5000, () => console.log(`Server is running in port: ${5000}`))

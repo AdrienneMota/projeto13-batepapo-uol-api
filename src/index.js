@@ -85,8 +85,28 @@ app.get("/participants", async (req, res) => {
     }
 })
 
-/////deleção de participante
+///deleção de participante
+setInterval(async () => {
+    const ten = 10 * 1000
+    const now = Date.now() - ten
+  
+    try {
+        const participantsFiltered = await participants.find({ lastStatus: { $lt: now } }).toArray()//$lt less than
+        console.log(participantsFiltered)
 
+        if (participantsFiltered.length) {
+            const participantsIds = participantsFiltered.map((participant) => participant._id)
+            await participants.deleteMany({_id: {$in: participantsIds}}) //includes 
+    
+            const messagesStatus = participantsFiltered.map((participant) => ({from: participant.name, to: 'Todos', text: 'sai da sala...', type: 'status', time: dayjs().format('HH:mm:ss')}))
+            await messages.insertMany(messagesStatus)
+        }
+    } catch (error) {
+        console.log(error)
+        res.sendStatus(500)
+    }
+
+}, 15000)
 
 /////ROTAS DE MENSAGENS///////////////////////////////////////////////////////////////////
 
@@ -126,14 +146,15 @@ app.get("/messages", async (req, res) => {
     const participant = req.headers.user
 
     try {
-        const allMessages = await messages.find().toArray()
-        const messagesFiltered = allMessages.filter(m => ((m.from === participant) || (m.to === participant) || (m.to === "Todos")))
-
-        if (limit) {
-            res.send(messagesFiltered.reverse().slice(0, limit))
-        } else {
-            res.send(messagesFiltered.reverse())
+        let query = messages.find().sort({time: -1})
+        if(limit){
+            query = query.limit(limit)
         }
+
+        const allMessages = await query.toArray()
+        const messagesFiltered = allMessages.filter(m => ((m.from === participant) || (m.to === participant) || (m.to === "Todos")))
+        res.send(messagesFiltered.reverse())
+     
     } catch (error) {
         console.log(error)
         res.sendStatus(500)
@@ -147,13 +168,13 @@ app.post("/status", async (req, res) => {
     const participant = req.headers.user
 
     try {
-        const participantExist = await participants.findOne({name: participant})
+        const participantExist = await participants.findOne({ name: participant })
 
-        if(!participantExist){
+        if (!participantExist) {
             res.sendStatus(404)
             return
         }
-        await participants.updateOne({name: participant}, {$set: {lastStatus: Date.now()}})
+        await participants.updateOne({ name: participant }, { $set: { lastStatus: Date.now() } })
         res.sendStatus(200)
     } catch (error) {
         res.sendStatus(500)

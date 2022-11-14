@@ -1,14 +1,12 @@
-import express from "express" //usar protocolo http
-import cors from "cors" //evitar erro de segurança
-import { MongoClient } from "mongodb" //comunicação com o mongodb
-import dotenv from "dotenv" //permite que a aplicação seja usada por o outros bancos
+import express from "express" 
+import cors from "cors"
+import { MongoClient } from "mongodb" 
+import dotenv from "dotenv" 
 import joi from "joi"
 import dayjs from "dayjs"
 
-/////criacao da api
-const app = express() //criacao da api
+const app = express()
 
-//////configs dos objetos
 const participantSchema = joi.object({
     name: joi.string().required().min(1)
 })
@@ -19,34 +17,26 @@ const messageSchema = joi.object({
     type: joi.string().valid("message", "private_message")
 })
 
-/////configurações da api
-app.use(cors()) //usar a biblioteca cors que evita erro de segurança
-app.use(express.json())//permite que a app entendo objetos json
-dotenv.config()//permite usar o documento .env
+app.use(cors())
+app.use(express.json())
+dotenv.config()
 
-/////o mongo db recebe o caminho para achar o banco 
 const mongodb = new MongoClient(process.env.MONGO_URI)
 let db
 let participants
 let messages
 
-/////ligação com o banco
 try {
-    await mongodb.connect() //espero a api se conectar com o banco através do caminho que foi passado ao mongodb
-    db = mongodb.db("dbBatepapouol")//dentro do endereço passado ache o banco tal
-    participants = db.collection("participants")//dentro do banco tal ache a coleção tal
+    await mongodb.connect() 
+    db = mongodb.db("dbBatepapouol")
+    participants = db.collection("participants")
     messages = db.collection("messages")
 } catch (error) {
     console.log(error)
 }
 
-////ROTA DE PARTICIPANTES//////////////////////////////////////////////////////////////////
-
-/////cadastro de participante
 app.post("/participants", async (req, res) => {
     const candidateParticipant = req.body
-
-    //verificações
 
     const validation = participantSchema.validate(candidateParticipant, { abortEarly: false })
     if (validation.error) {
@@ -61,9 +51,6 @@ app.post("/participants", async (req, res) => {
         return
     }
 
-    //inserir participante   
-    //enviar mensagem de entrada
-
     try {
         await participants.insertOne({ name: candidateParticipant.name, lastStatus: Date.now() })
         await messages.insertOne({ from: candidateParticipant.name, to: 'Todos', text: 'entra na sala...', type: 'status', time: dayjs().format('HH:mm:ss') })
@@ -73,7 +60,6 @@ app.post("/participants", async (req, res) => {
     }
 })
 
-/////listagem de participantes
 app.get("/participants", async (req, res) => {
 
     try {
@@ -85,18 +71,17 @@ app.get("/participants", async (req, res) => {
     }
 })
 
-///deleção de participante
 setInterval(async () => {
     const ten = 10 * 1000
     const now = Date.now() - ten
   
     try {
-        const participantsFiltered = await participants.find({ lastStatus: { $lt: now } }).toArray()//$lt less than
+        const participantsFiltered = await participants.find({ lastStatus: { $lt: now } }).toArray()
         console.log(participantsFiltered)
 
         if (participantsFiltered.length) {
             const participantsIds = participantsFiltered.map((participant) => participant._id)
-            await participants.deleteMany({_id: {$in: participantsIds}}) //includes 
+            await participants.deleteMany({_id: {$in: participantsIds}})
     
             const messagesStatus = participantsFiltered.map((participant) => ({from: participant.name, to: 'Todos', text: 'sai da sala...', type: 'status', time: dayjs().format('HH:mm:ss')}))
             await messages.insertMany(messagesStatus)
@@ -108,9 +93,6 @@ setInterval(async () => {
 
 }, 15000)
 
-/////ROTAS DE MENSAGENS///////////////////////////////////////////////////////////////////
-
-/////cadastro de menssagens
 app.post("/messages", async (req, res) => {
     const message = req.body
     const participant = req.headers.user
@@ -137,10 +119,8 @@ app.post("/messages", async (req, res) => {
         res.status(500).send(error)
     }
 
-
 })
 
-/////listagem de menssagens
 app.get("/messages", async (req, res) => {
     const limit = parseInt(req.query.limit)
     const participant = req.headers.user
@@ -150,10 +130,10 @@ app.get("/messages", async (req, res) => {
         if(limit){
             query = query.limit(limit)
         }
-
+        
         const allMessages = await query.toArray()
-        const messagesFiltered = allMessages.filter(m => ((m.from === participant) || (m.to === participant) || (m.to === "Todos")))
-        res.send(messagesFiltered.reverse())
+        const messagesFiltered = allMessages.filter(message => (((message.type === "status") || (message.type === "message")) || (message.type === "private_message" && (message.to === participant || message.from === participant))))
+        res.send(messagesFiltered.reverse()) 
      
     } catch (error) {
         console.log(error)
@@ -161,8 +141,6 @@ app.get("/messages", async (req, res) => {
     }
 
 })
-
-/////ROTAS STATUS////////////////////////////////////////////////////////////////////////
 
 app.post("/status", async (req, res) => {
     const participant = req.headers.user
